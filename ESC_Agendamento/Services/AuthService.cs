@@ -25,9 +25,14 @@ namespace ESC_Agendamento.Services
 
         public async Task<UsuarioResponseDto> RegistrarAsync(UsuarioRegisterDto dto)
         {
-            if(await _context.Usuarios.AnyAsync(u => u.Email.ToLower() == dto.Email.ToLower()))
+            if (await _context.Usuarios.AnyAsync(u => u.Email.ToLower() == dto.Email.ToLower()))
             {
                 throw new Exception("Email já cadastrado.");
+            }
+
+            if(!ValidarCampos(dto))
+            {
+                throw new Exception("Dados inválidos.");
             }
 
             CreatePasswordHash(dto.Senha, out byte[] hash, out byte[] salt);
@@ -38,7 +43,7 @@ namespace ESC_Agendamento.Services
                 Email = dto.Email.ToLower(),
                 SenhaHash = hash,
                 SenhaSalt = salt,
-                Role = "cliente"
+                Role = dto.Role
             };
 
             _context.Usuarios.Add(usuario);
@@ -98,7 +103,7 @@ namespace ESC_Agendamento.Services
                 {
                 new Claim(ClaimTypes.NameIdentifier, usuario.Id.ToString()),
                 new Claim(ClaimTypes.Name, usuario.Nome),
-                new Claim(ClaimTypes.Role, usuario.Role)
+                new Claim(ClaimTypes.Role, usuario.Role.ToString())
             }),
                 Expires = DateTime.UtcNow.AddHours(2),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
@@ -106,6 +111,22 @@ namespace ESC_Agendamento.Services
 
             var token = tokenHandler.CreateToken(tokenDescriptor);
             return tokenHandler.WriteToken(token);
+        }
+
+        private bool ValidarCampos(UsuarioRegisterDto usuario_cad)
+        {
+            if (string.IsNullOrEmpty(usuario_cad.Nome) || 
+                string.IsNullOrEmpty(usuario_cad.Email) || 
+                string.IsNullOrEmpty(usuario_cad.Senha) || 
+                string.IsNullOrEmpty(usuario_cad.NomeUsuario))
+            {
+                return false;
+            }
+            if (usuario_cad.Senha.Length < 6)
+            {
+                return false;
+            }
+            return true;
         }
     }
 }
